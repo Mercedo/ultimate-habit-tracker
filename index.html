@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ultimate Habit Tracker - Build lasting routines">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Ultimate Habit Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+        body { margin: 0; padding: 0; overflow-x: hidden; }
+        
+        /* Glassmorphism */
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .glass-dark { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        
+        /* Animated gradient background */
+        .gradient-bg {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        .gradient-bg-dark {
+            background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #1e293b);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Habit button styles */
+        .habit-btn {
+            width: 40px; height: 40px; border-radius: 12px;
+            cursor: pointer; font-size: 12px; font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .habit-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .habit-btn:hover::before { opacity: 1; }
+        .habit-btn:hover { transform: scale(1.1) rotate(5deg); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .habit-btn.completed { color: white; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .habit-btn.rest-day {
+            background: linear-gradient(135deg, #64748b, #475569);
+            color: white; opacity: 0.7; cursor: not-allowed;
+        }
+        .habit-btn.rest-day::after {
+            content: '🌙';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+        }
+        
+        /* Neon glow effect */
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 40px rgba(139, 92, 246, 0.4);
+        }
+        
+        /* Card hover effect */
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        
+        /* Smooth scrollbar */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #764ba2, #667eea); }
+        
+        /* Floating animation */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .float { animation: float 3s ease-in-out infinite; }
+        
+        /* Shimmer effect */
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        @media print { .no-print { display: none !important; } }
+        
+        /* Tab active indicator */
+        .tab-active {
+            position: relative;
+        }
+        .tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 3px 3px 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    
+    <script>
+        // Long press detection
+        let pressTimer;
+        let isLongPress = false;
+
+        function handleMouseDown(habitId, day) {
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                toggleRestDay(habitId, day);
+            }, 500);
+        }
+
+        function handleMouseUp(habitId, day) {
+            clearTimeout(pressTimer);
+            if (!isLongPress) {
+                toggleCompletion(habitId, day);
+            }
+        }
+
+        function handleTouchStart(e, habitId, day) {
+            e.preventDefault();
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                toggleRestDay(habitId, day);
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            }, 500);
+        }
+
+        function handleTouchEnd(e, habitId, day) {
+            e.preventDefault();
+            clearTimeout(pressTimer);
+            if (!isLongPress) {
+                toggleCompletion(habitId, day);
+            }
+        }
+
+        // State management
+        let state = {
+            darkMode: false,
+            currentMonth: new Date().getMonth(),
+            currentYear: new Date().getFullYear(),
+            activeTab: 'tracker',
+            habits: [
+                { id: 1, name: 'Workout', emoji: '💪', goal: 25, color: '#f43f5e' },
+                { id: 2, name: 'Reading', emoji: '📚', goal: 30, color: '#3b82f6' },
+                { id: 3, name: 'Meditation', emoji: '🧘', goal: 30, color: '#a855f7' },
+                { id: 4, name: 'Water', emoji: '💧', goal: 30, color: '#06b6d4' },
+            ],
+            completions: {},
+            restDays: {},
+            achievements: [],
+            dailyNotes: {},
+            showAddHabit: false,
+            editingNote: null
+        };
+
+        // Load from localStorage
+        const saved = localStorage.getItem('habitTrackerData');
+        if (saved) {
+            const data = JSON.parse(saved);
+            state = { ...state, ...data };
+        }
+
+        function saveState() {
+            localStorage.setItem('habitTrackerData', JSON.stringify(state));
+        }
+
+        function getDaysInMonth() {
+            return new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
+        }
+
+        function getCompletionKey(habitId, day) {
+            return `${state.currentYear}-${state.currentMonth}-${habitId}-${day}`;
+        }
+
+        function getRestDayKey(habitId, day) {
+            return `${state.currentYear}-${state.currentMonth}-${day}-${habitId}`;
+        }
+
+        function isRestDay(habitId, day) {
+            return state.restDays[getRestDayKey(habitId, day)] || false;
+        }
+
+        function toggleRestDay(habitId, day) {
+            const key = getRestDayKey(habitId, day);
+            state.restDays[key] = !state.restDays[key];
+            if (state.restDays[key]) {
+                delete state.completions[getCompletionKey(habitId, day)];
+            }
+            saveState();
+            render();
+        }
+
+        function getCompletionCount(habitId) {
+            let count = 0;
+            for (let day = 1; day <= getDaysInMonth(); day++) {
+                if (!isRestDay(habitId, day) && state.completions[getCompletionKey(habitId, day)]) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        function getActiveGoal(habitId) {
+            let activeDays = 0;
+            for (let day = 1; day <= getDaysInMonth(); day++) {
+                if (!isRestDay(habitId, day)) {
+                    activeDays++;
+                }
+            }
+            return activeDays;
+        }
+
+        function getCurrentStreak(habitId) {
+            let streak = 0;
+            const today = new Date();
+            const currentDay = today.getMonth() === state.currentMonth && today.getFullYear() === state.currentYear ? today.getDate() : getDaysInMonth();
+            
+            for (let day = currentDay; day >= 1; day--) {
+                if (isRestDay(habitId, day)) {
+                    continue;
+                }
+                if (state.completions[getCompletionKey(habitId, day)]) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function getOverallCompletion() {
+            let totalPossible = 0;
+            let totalCompleted = 0;
+            
+            state.habits.forEach(h => {
+                totalPossible += getActiveGoal(h.id);
+                totalCompleted += getCompletionCount(h.id);
+            });
+            
+            return totalPossible > 0 ? Math.round((totalCompleted / totalPossible) * 100) : 0;
+        }
+
+        function getTotalStreaks() {
+            return state.habits.reduce((sum, h) => sum + getCurrentStreak(h.id), 0);
+        }
+
+        function toggleCompletion(habitId, day) {
+            if (isRestDay(habitId, day)) {
+                return;
+            }
+            const key = getCompletionKey(habitId, day);
+            state.completions[key] = !state.completions[key];
+            saveState();
+            render();
+        }
+
+        function addHabit(name, emoji, goal, color) {
+            if (name.trim()) {
+                state.habits.push({ id: Date.now(), name, emoji, goal, color });
+                state.showAddHabit = false;
+                saveState();
+                render();
+            }
+        }
+
+        function deleteHabit(id) {
+            if (confirm('Delete this habit? 🗑️')) {
+                state.habits = state.habits.filter(h => h.id !== id);
+                saveState();
+                render();
+            }
+        }
+
+        function addAchievement(text) {
+            if (text.trim()) {
+                state.achievements.push({ id: Date.now(), text, date: new Date().toLocaleDateString() });
+                saveState();
+                render();
+            }
+        }
+
+        function saveNote(day, note) {
+            const key = `${state.currentYear}-${state.currentMonth}-${day}`;
+            state.dailyNotes[key] = note;
+            state.editingNote = null;
+            saveState();
+            render();
+        }
+
+        function exportData() {
+            const data = JSON.stringify(state, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `habits-${new Date().toISOString()}.json`;
+            a.click();
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            const bgClass = state.darkMode ? 'gradient-bg-dark' : 'gradient-bg';
+            const cardClass = state.darkMode ? 'glass-dark' : 'glass';
+            const textClass = state.darkMode ? 'text-white' : 'text-gray-900';
+            const textSecondary = state.darkMode ? 'text-gray-300' : 'text-gray-700';
+            
+            app.innerHTML = `
+                <div class="${bgClass} min-h-screen ${textClass} transition-all duration-500">
+                    <!-- Floating Header -->
+                    <div class="sticky top-0 z-50 ${cardClass} backdrop-blur-2xl shadow-2xl no-print">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+                            <div class="flex items-center justify-between flex-wrap gap-4">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl float shadow-lg">
+                                        ✨
+                                    </div>
+                                    <div>
+                                        <h1 class="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                                            Habit Tracker
+                                        </h1>
+                                        <p class="${textSecondary} text-sm font-medium">Level up your life 🚀</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center gap-2">
+                                    <div class="flex gap-1 p-1 ${cardClass} rounded-2xl">
+                                        ${['tracker', 'analytics', 'insights'].map(tab => `
+                                            <button onclick="state.activeTab='${tab}'; render();" 
+                                                class="px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300 ${
+                                                    state.activeTab === tab 
+                                                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg neon-glow' 
+                                                        : `${textSecondary} hover:bg-white/10`
+                                                }">
+                                                ${tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                            </button>
+                                        `).join('')}
+                                    </div>
+                                    
+                                    <button onclick="exportData()" 
+                                        class="p-3 ${cardClass} rounded-xl hover:scale-110 transition-transform duration-300" 
+                                        title="Export">
+                                        💾
+                                    </button>
+                                    <button onclick="window.print()" 
+                                        class="p-3 ${cardClass} rounded-xl hover:scale-110 transition-transform duration-300" 
+                                        title="Print">
+                                        🖨️
+                                    </button>
+                                    <button onclick="state.darkMode=!state.darkMode; render();" 
+                                        class="p-3 ${cardClass} rounded-xl hover:scale-110 transition-transform duration-300">
+                                        ${state.darkMode ? '☀️' : '🌙'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            ${renderStatsCard('📅', 'Calendar', renderCalendarSelect(), 'from-blue-500 to-cyan-500')}
+                            ${renderStatsCard('🎯', `${getOverallCompletion()}%`, 'Completion', 'from-green-500 to-emerald-500', 'text-5xl font-black')}
+                            ${renderStatsCard('🔥', getTotalStreaks(), 'Active Streaks', 'from-orange-500 to-red-500', 'text-5xl font-black')}
+                            ${renderStatsCard('📊', state.habits.length, 'Habits', 'from-purple-500 to-pink-500', 'text-5xl font-black')}
+                        </div>
+
+                        ${state.activeTab === 'tracker' ? renderTracker() : state.activeTab === 'analytics' ? renderAnalytics() : renderInsights()}
+                    </div>
+                    
+                    <!-- Floating Action Button -->
+                    <div class="fixed bottom-8 right-8 no-print">
+                        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" 
+                            class="w-14 h-14 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-2xl hover:scale-110 transition-transform duration-300 flex items-center justify-center text-2xl neon-glow">
+                            ↑
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStatsCard(emoji, value, label, gradient, valueClass = 'text-3xl font-bold') {
+            return `
+                <div class="card-hover ${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-2xl shadow-lg">
+                            ${emoji}
+                        </div>
+                    </div>
+                    <div class="${valueClass} bg-gradient-to-r ${gradient} bg-clip-text text-transparent mb-1">
+                        ${typeof value === 'string' && value.includes('<') ? value : value}
+                    </div>
+                    <div class="${state.darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm font-medium">${label}</div>
+                </div>
+            `;
+        }
+
+        function renderCalendarSelect() {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `
+                <div class="flex gap-2">
+                    <select onchange="state.currentMonth=parseInt(this.value); render();" 
+                        class="${state.darkMode ? 'bg-gray-800 text-white' : 'bg-white/50 text-gray-900'} px-3 py-2 rounded-xl border-0 font-semibold text-sm outline-none">
+                        ${months.map((m, i) => `<option value="${i}" ${i === state.currentMonth ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select>
+                    <input type="number" value="${state.currentYear}" 
+                        onchange="state.currentYear=parseInt(this.value); render();" 
+                        class="${state.darkMode ? 'bg-gray-800 text-white' : 'bg-white/50 text-gray-900'} w-20 px-3 py-2 rounded-xl border-0 font-semibold text-sm outline-none">
+                </div>
+            `;
+        }
+
+        function renderTracker() {
+            return `
+                <!-- Add Habit Button -->
+                <div class="mb-6 no-print">
+                    <button onclick="state.showAddHabit=!state.showAddHabit; render();" 
+                        class="w-full py-6 rounded-3xl bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white font-bold text-lg shadow-2xl hover:shadow-purple-500/50 hover:scale-[1.02] transition-all duration-300 neon-glow">
+                        ➕ Add New Habit
+                    </button>
+                </div>
+
+                ${state.showAddHabit ? `
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 mb-6 no-print">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <input type="text" id="habitName" placeholder="Habit name" 
+                                class="${state.darkMode ? 'bg-gray-800 text-white' : 'bg-white/70 text-gray-900'} px-4 py-4 rounded-2xl border-0 font-semibold outline-none focus:ring-2 focus:ring-purple-500">
+                            <input type="text" id="habitEmoji" placeholder="Emoji" value="⭐" 
+                                class="${state.darkMode ? 'bg-gray-800' : 'bg-white/70'} px-4 py-4 rounded-2xl border-0 text-center text-3xl outline-none focus:ring-2 focus:ring-purple-500">
+                            <input type="number" id="habitGoal" placeholder="Goal" value="30" 
+                                class="${state.darkMode ? 'bg-gray-800 text-white' : 'bg-white/70 text-gray-900'} px-4 py-4 rounded-2xl border-0 font-semibold outline-none focus:ring-2 focus:ring-purple-500">
+                            <input type="color" id="habitColor" value="#a855f7" 
+                                class="px-2 py-4 rounded-2xl border-0 cursor-pointer h-full">
+                            <button onclick="addHabit(document.getElementById('habitName').value, document.getElementById('habitEmoji').value, parseInt(document.getElementById('habitGoal').value), document.getElementById('habitColor').value)" 
+                                class="px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-2xl font-bold hover:scale-105 transition-transform duration-300">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <!-- Habits Grid -->
+                    <div class="xl:col-span-2">
+                        <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6">
+                            <h2 class="text-3xl font-bold mb-2 flex items-center gap-3">
+                                <span class="text-4xl">📊</span>
+                                Daily Tracker
+                            </h2>
+                            <p class="${state.darkMode ? 'text-gray-400' : 'text-gray-600'} mb-6 text-sm">
+                                Click to complete • Long press for rest day 🌙
+                            </p>
+                            
+                            <div class="space-y-4">
+                                ${state.habits.map(habit => {
+                                    const completed = getCompletionCount(habit.id);
+                                    const activeGoal = getActiveGoal(habit.id);
+                                    const percentage = activeGoal > 0 ? Math.round((completed / activeGoal) * 100) : 0;
+                                    const streak = getCurrentStreak(habit.id);
+                                    
+                                    return `
+                                        <div class="card-hover ${state.darkMode ? 'bg-gray-800/50' : 'bg-white/30'} rounded-2xl p-5 backdrop-blur-sm">
+                                            <div class="flex items-center gap-4 mb-4">
+                                                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center text-4xl shadow-lg" 
+                                                    style="background: linear-gradient(135deg, ${habit.color}dd, ${habit.color}88)">
+                                                    ${habit.emoji}
+                                                </div>
+                                                <div class="flex-1">
+                                                    <h3 class="font-bold text-xl mb-1">${habit.name}</h3>
+                                                    <div class="flex items-center gap-3 flex-wrap">
+                                                        <span class="px-3 py-1 rounded-full text-xs font-bold" 
+                                                            style="background: linear-gradient(135deg, ${habit.color}33, ${habit.color}22); color: ${habit.color}">
+                                                            ${completed}/${activeGoal} • ${percentage}%
+                                                        </span>
+                                                        <span class="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full text-xs font-bold shadow-lg">
+                                                            🔥 ${streak} streak
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button onclick="deleteHabit(${habit.id})" 
+                                                    class="p-3 ${state.darkMode ? 'hover:bg-red-900/50' : 'hover:bg-red-100'} rounded-xl transition-all no-print">
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="flex gap-2 flex-wrap">
+                                                ${Array.from({length: getDaysInMonth()}, (_, i) => {
+                                                    const day = i + 1;
+                                                    const isCompleted = state.completions[getCompletionKey(habit.id, day)];
+                                                    const isRest = isRestDay(habit.id, day);
+                                                    
+                                                    return `
+                                                        <button 
+                                                            onmousedown="handleMouseDown(${habit.id}, ${day})"
+                                                            onmouseup="handleMouseUp(${habit.id}, ${day})"
+                                                            onmouseleave="clearTimeout(pressTimer)"
+                                                            ontouchstart="handleTouchStart(event, ${habit.id}, ${day})"
+                                                            ontouchend="handleTouchEnd(event, ${habit.id}, ${day})"
+                                                            ontouchcancel="clearTimeout(pressTimer)"
+                                                            class="habit-btn ${isRest ? 'rest-day' : isCompleted ? 'completed' : state.darkMode ? 'bg-gray-700/50' : 'bg-white/50'}"
+                                                            style="${!isRest && isCompleted ? `background: linear-gradient(135deg, ${habit.color}, ${habit.color}cc)` : ''}">
+                                                            ${isRest ? '' : isCompleted ? '✓' : day}
+                                                        </button>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        ${renderNotes()}
+                        ${renderAchievements()}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderNotes() {
+            return `
+                <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                        <span class="text-3xl">📝</span>
+                        Daily Notes
+                    </h3>
+                    <div class="space-y-3 max-h-96 overflow-y-auto">
+                        ${Array.from({length: Math.min(getDaysInMonth(), 7)}, (_, i) => {
+                            const day = i + 1;
+                            const noteKey = `${state.currentYear}-${state.currentMonth}-${day}`;
+                            const note = state.dailyNotes[noteKey] || '';
+                            
+                            return `
+                                <div class="${state.darkMode ? 'bg-gray-800/50' : 'bg-white/30'} p-4 rounded-2xl backdrop-blur-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-bold text-sm px-3 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">Day ${day}</span>
+                                        <button onclick="state.editingNote=${day}; render();" 
+                                            class="text-blue-500 hover:scale-110 transition-transform">
+                                            ✏️
+                                        </button>
+                                    </div>
+                                    ${state.editingNote === day ? `
+                                        <textarea 
+                                            id="note-${day}"
+                                            placeholder="Add note..."
+                                            class="${state.darkMode ? 'bg-gray-700/50 text-white' : 'bg-white/50 text-gray-900'} w-full px-3 py-2 rounded-xl border-0 text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                            rows="3"
+                                            onblur="saveNote(${day}, this.value)">${note}</textarea>
+                                    ` : `
+                                        <p class="text-sm ${note ? '' : state.darkMode ? 'text-gray-500' : 'text-gray-400'}">
+                                            ${note || 'No notes yet...'}
+                                        </p>
+                                    `}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAchievements() {
+            return `
+                <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                        <span class="text-3xl">🏆</span>
+                        Achievements
+                    </h3>
+                    <div class="flex gap-2 mb-4">
+                        <input 
+                            type="text" 
+                            id="achievementInput"
+                            placeholder="Add achievement..." 
+                            class="${state.darkMode ? 'bg-gray-800 text-white' : 'bg-white/70 text-gray-900'} flex-1 px-4 py-3 rounded-2xl border-0 text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                            onkeypress="if(event.key==='Enter') { addAchievement(this.value); this.value=''; }"
+                        >
+                        <button onclick="const inp=document.getElementById('achievementInput'); addAchievement(inp.value); inp.value='';" 
+                            class="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-2xl font-bold hover:scale-105 transition-transform shadow-lg">
+                            +
+                        </button>
+                    </div>
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        ${state.achievements.map(ach => `
+                            <div class="${state.darkMode ? 'bg-gray-800/50' : 'bg-white/30'} p-3 rounded-2xl backdrop-blur-sm">
+                                <div class="flex items-start gap-3">
+                                    <span class="text-2xl">🎯</span>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-sm">${ach.text}</div>
+                                        <div class="text-xs ${state.darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1">${ach.date}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        ${state.achievements.length === 0 ? `
+                            <div class="text-center py-8 ${state.darkMode ? 'text-gray-500' : 'text-gray-400'} text-sm">
+                                No achievements yet 🌟
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAnalytics() {
+            const weeks = Math.ceil(getDaysInMonth() / 7);
+            const weeklyData = [];
+            
+            for (let w = 0; w < weeks; w++) {
+                const weekStart = w * 7 + 1;
+                const weekEnd = Math.min((w + 1) * 7, getDaysInMonth());
+                
+                let weekTotal = 0;
+                state.habits.forEach(habit => {
+                    for (let day = weekStart; day <= weekEnd; day++) {
+                        if (!isRestDay(habit.id, day) && state.completions[getCompletionKey(habit.id, day)]) {
+                            weekTotal++;
+                        }
+                    }
+                });
+                weeklyData.push({ week: `W${w + 1}`, total: weekTotal });
+            }
+
+            const dailyData = [];
+            for (let day = 1; day <= getDaysInMonth(); day++) {
+                let dailyTotal = 0;
+                state.habits.forEach(habit => {
+                    if (!isRestDay(habit.id, day) && state.completions[getCompletionKey(habit.id, day)]) {
+                        dailyTotal++;
+                    }
+                });
+                dailyData.push({ day, total: dailyTotal });
+            }
+
+            const maxDaily = Math.max(...dailyData.map(d => d.total), 1);
+            const maxWeekly = Math.max(...weeklyData.map(w => w.total), 1);
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Overall Completion -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <span class="text-3xl">📊</span>
+                            Overall Completion
+                        </h3>
+                        <div class="flex items-center justify-center" style="height: 280px;">
+                            <div class="relative" style="width: 220px; height: 220px;">
+                                <svg viewBox="0 0 100 100" class="transform -rotate-90">
+                                    <defs>
+                                        <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                                            <stop offset="100%" style="stop-color:#34d399;stop-opacity:1" />
+                                        </linearGradient>
+                                    </defs>
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="${state.darkMode ? '#374151' : '#e5e7eb'}" stroke-width="12"/>
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="url(#progressGrad)" stroke-width="12"
+                                        stroke-dasharray="${getOverallCompletion() * 2.51} 251"
+                                        stroke-linecap="round" class="shimmer"/>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <div class="text-6xl font-black bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                                        ${getOverallCompletion()}%
+                                    </div>
+                                    <div class="${state.darkMode ? 'text-gray-400' : 'text-gray-600'} text-sm font-semibold">Complete</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Consistency -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <span class="text-3xl">📈</span>
+                            Daily Consistency
+                        </h3>
+                        <div style="height: 280px; position: relative;">
+                            <svg width="100%" height="100%" style="overflow: visible;">
+                                <defs>
+                                    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                ${[0, 1, 2, 3, 4].map(i => `
+                                    <line x1="40" y1="${30 + i * 50}" x2="100%" y2="${30 + i * 50}" 
+                                        stroke="${state.darkMode ? '#374151' : '#e5e7eb'}" stroke-width="1" stroke-dasharray="4"/>
+                                `).join('')}
+                                
+                                <polyline
+                                    points="${dailyData.map((d, i) => {
+                                        const x = 40 + (i / (dailyData.length - 1)) * 55;
+                                        const y = 230 - (d.total / maxDaily) * 180;
+                                        return `${x}%,${y}`;
+                                    }).join(' ')}"
+                                    fill="none"
+                                    stroke="url(#lineGrad)"
+                                    stroke-width="4"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                                
+                                ${dailyData.map((d, i) => {
+                                    const x = 40 + (i / (dailyData.length - 1)) * 55;
+                                    const y = 230 - (d.total / maxDaily) * 180;
+                                    return `<circle cx="${x}%" cy="${y}" r="5" fill="#3b82f6" class="shimmer"/>`;
+                                }).join('')}
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Performance -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <span class="text-3xl">📊</span>
+                            Weekly Performance
+                        </h3>
+                        <div style="height: 280px; position: relative;">
+                            <svg width="100%" height="100%">
+                                ${weeklyData.map((w, i) => {
+                                    const barWidth = 70 / weeklyData.length;
+                                    const x = 15 + (i * (70 / weeklyData.length));
+                                    const height = (w.total / maxWeekly) * 200;
+                                    const y = 230 - height;
+                                    
+                                    return `
+                                        <defs>
+                                            <linearGradient id="barGrad${i}" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                <stop offset="0%" style="stop-color:#a855f7;stop-opacity:1" />
+                                                <stop offset="100%" style="stop-color:#ec4899;stop-opacity:1" />
+                                            </linearGradient>
+                                        </defs>
+                                        <rect x="${x}%" y="${y}" width="${barWidth}%" height="${height}" 
+                                            fill="url(#barGrad${i})" rx="8" class="shimmer"/>
+                                        <text x="${x + barWidth / 2}%" y="${y - 10}" 
+                                            fill="${state.darkMode ? '#e5e7eb' : '#1f2937'}" 
+                                            font-size="14" text-anchor="middle" font-weight="bold">${w.total}</text>
+                                        <text x="${x + barWidth / 2}%" y="255" 
+                                            fill="${state.darkMode ? '#9ca3af' : '#6b7280'}" 
+                                            font-size="12" text-anchor="middle" font-weight="600">${w.week}</text>
+                                    `;
+                                }).join('')}
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Habit Performance -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-6 card-hover">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                            <span class="text-3xl">🎯</span>
+                            Habit Performance
+                        </h3>
+                        <div class="space-y-5">
+                            ${state.habits.map(habit => {
+                                const completed = getCompletionCount(habit.id);
+                                const activeGoal = getActiveGoal(habit.id);
+                                const percentage = activeGoal > 0 ? Math.round((completed / activeGoal) * 100) : 0;
+                                
+                                return `
+                                    <div>
+                                        <div class="flex items-center justify-between mb-3">
+                                            <div class="flex items-center gap-3">
+                                                <span class="text-3xl">${habit.emoji}</span>
+                                                <span class="font-bold">${habit.name}</span>
+                                            </div>
+                                            <span class="text-2xl font-black bg-gradient-to-r bg-clip-text text-transparent" 
+                                                style="background-image: linear-gradient(135deg, ${habit.color}, ${habit.color}88)">${percentage}%</span>
+                                        </div>
+                                        <div class="relative w-full h-6 ${state.darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full overflow-hidden shadow-inner">
+                                            <div class="absolute inset-0 flex items-center justify-end pr-3">
+                                                <span class="text-xs font-bold text-white z-10">${completed}/${activeGoal}</span>
+                                            </div>
+                                            <div class="h-full rounded-full transition-all duration-1000 ease-out shadow-lg" 
+                                                style="width: ${percentage}%; background: linear-gradient(90deg, ${habit.color}, ${habit.color}cc)">
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between mt-2 text-xs ${state.darkMode ? 'text-gray-400' : 'text-gray-600'} font-medium">
+                                            <span>Streak: 🔥 ${getCurrentStreak(habit.id)}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderInsights() {
+            const totalCompletions = state.habits.reduce((sum, h) => sum + getCompletionCount(h.id), 0);
+            const avgCompletion = state.habits.length > 0 ? Math.round(totalCompletions / state.habits.length) : 0;
+            
+            return `
+                <div class="space-y-6">
+                    <!-- Summary Cards -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-8">
+                        <h2 class="text-4xl font-bold mb-8 flex items-center gap-3">
+                            <span class="text-5xl">📈</span>
+                            Monthly Insights
+                        </h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="text-center p-8 rounded-3xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-2xl card-hover">
+                                <div class="text-7xl font-black mb-3">${totalCompletions}</div>
+                                <div class="text-lg font-semibold opacity-90">Total Completions</div>
+                            </div>
+                            <div class="text-center p-8 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-2xl card-hover">
+                                <div class="text-7xl font-black mb-3">${avgCompletion}</div>
+                                <div class="text-lg font-semibold opacity-90">Avg Per Habit</div>
+                            </div>
+                            <div class="text-center p-8 rounded-3xl bg-gradient-to-br from-orange-500 to-red-500 text-white shadow-2xl card-hover">
+                                <div class="text-7xl font-black mb-3">${state.habits.length}</div>
+                                <div class="text-lg font-semibold opacity-90">Active Habits</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Breakdown -->
+                    <div class="${state.darkMode ? 'glass-dark' : 'glass'} rounded-3xl shadow-2xl p-8">
+                        <h3 class="text-3xl font-bold mb-6">Detailed Breakdown</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="border-b-2 ${state.darkMode ? 'border-gray-700' : 'border-gray-300'}">
+                                        <th class="text-left py-5 px-4 font-bold">Habit</th>
+                                        <th class="text-center py-5 px-4 font-bold">Done</th>
+                                        <th class="text-center py-5 px-4 font-bold">Goal</th>
+                                        <th class="text-center py-5 px-4 font-bold">Progress</th>
+                                        <th class="text-center py-5 px-4 font-bold">Streak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${state.habits.map(habit => {
+                                        const completed = getCompletionCount(habit.id);
+                                        const activeGoal = getActiveGoal(habit.id);
+                                        const percentage = activeGoal > 0 ? Math.round((completed / activeGoal) * 100) : 0;
+                                        const streak = getCurrentStreak(habit.id);
+                                        
+                                        return `
+                                            <tr class="border-b ${state.darkMode ? 'border-gray-700/50 hover:bg-gray-800/50' : 'border-gray-200 hover:bg-white/50'} transition-all">
+                                                <td class="py-5 px-4">
+                                                    <div class="flex items-center gap-4">
+                                                        <span class="text-4xl">${habit.emoji}</span>
+                                                        <span class="font-bold text-xl">${habit.name}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center py-5 px-4 font-black text-2xl">${completed}</td>
+                                                <td class="text-center py-5 px-4 font-black text-2xl">${activeGoal}</td>
+                                                <td class="text-center py-5 px-4">
+                                                    <div class="flex items-center justify-center gap-3">
+                                                        <div class="w-28 h-4 ${state.darkMode ? 'bg-gray-700' : 'bg-gray-200'} rounded-full overflow-hidden shadow-inner">
+                                                            <div class="h-full rounded-full" style="width: ${percentage}%; background: linear-gradient(90deg, ${habit.color}, ${habit.color}cc)"></div>
+                                                        </div>
+                                                        <span class="font-black text-xl" style="color: ${habit.color}">${percentage}%</span>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center py-5 px-4">
+                                                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-black text-lg shadow-lg">
+                                                        🔥 ${streak}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Motivational Quote -->
+                    <div class="rounded-3xl shadow-2xl p-12 text-center bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white neon-glow">
+                        <h2 class="text-5xl font-black mb-4">IT'S NOT OVER UNTIL I WIN 🏆</h2>
+                        <p class="text-2xl font-semibold opacity-90">Keep grinding, legend! 💪</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
